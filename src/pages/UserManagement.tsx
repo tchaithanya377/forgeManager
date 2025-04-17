@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   UserPlus, 
   Edit2, 
   Trash2, 
   Search,
-  Users as UsersIcon
+  Users as UsersIcon,
+  FolderPlus,
+  Check,
+  X
 } from 'lucide-react';
 import { createNewUser, getUsers, updateUser, deleteUser, ROLES, DEPARTMENTS, type Role, type Department } from '../lib/firebase';
 import { useQuery, useQueryClient } from 'react-query';
@@ -37,6 +40,9 @@ function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<Role | ''>('');
   const [departmentFilter, setDepartmentFilter] = useState<Department | ''>('');
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkAssignTo, setBulkAssignTo] = useState<string>('');
 
   const { data: users = [], isLoading } = useQuery('users', getUsers, {
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -115,6 +121,24 @@ function UserManagement() {
     }
   };
 
+  const handleBulkAssign = async () => {
+    if (!bulkAssignTo) {
+      toast.error('Please select a user to assign to');
+      return;
+    }
+    try {
+      await Promise.all(selectedUsers.map(userId => 
+        updateUser(userId, { reportsTo: bulkAssignTo })
+      ));
+      toast.success('Users assigned successfully');
+      setSelectedUsers([]);
+      setShowBulkAssign(false);
+      queryClient.invalidateQueries('users');
+    } catch (error) {
+      toast.error('Failed to assign users');
+    }
+  };
+
   const getRoleBadgeColor = (role: Role) => {
     switch (role) {
       case ROLES.SUPER_ADMIN:
@@ -147,24 +171,35 @@ function UserManagement() {
             Manage your team members and their roles
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingUser(null);
-            setFormData({
-              email: '',
-              password: '',
-              fullName: '',
-              role: ROLES.MEMBER,
-              department: '' as Department,
-              reportsTo: '',
-            });
-            setShowModal(true);
-          }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center hover:bg-blue-700"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add User
-        </button>
+        <div className="flex items-center space-x-4">
+          {selectedUsers.length > 0 && (
+            <button
+              onClick={() => setShowBulkAssign(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center hover:bg-green-700"
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Assign to Group
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setEditingUser(null);
+              setFormData({
+                email: '',
+                password: '',
+                fullName: '',
+                role: ROLES.MEMBER,
+                department: '' as Department,
+                reportsTo: '',
+              });
+              setShowModal(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center hover:bg-blue-700"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add User
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -212,6 +247,19 @@ function UserManagement() {
             <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedUsers(filteredUsers.map(u => u.id));
+                      } else {
+                        setSelectedUsers([]);
+                      }
+                    }}
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -234,6 +282,19 @@ function UserManagement() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.map((user: User) => (
                 <tr key={user.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedUsers([...selectedUsers, user.id]);
+                        } else {
+                          setSelectedUsers(selectedUsers.filter(id => id !== user.id));
+                        }
+                      }}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -412,6 +473,62 @@ function UserManagement() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkAssign && (
+        <div className="fixed z-10 inset-0 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 dark:bg-gray-900 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                      Assign Users to Group
+                    </h3>
+                    <div className="mt-2 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Assign to User
+                        </label>
+                        <select
+                          value={bulkAssignTo}
+                          onChange={(e) => setBulkAssignTo(e.target.value)}
+                          className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                        >
+                          <option value="">Select User</option>
+                          {users.map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.fullName} ({user.role})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={handleBulkAssign}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Assign
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkAssign(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
