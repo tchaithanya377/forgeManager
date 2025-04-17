@@ -7,14 +7,14 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc, 
-  updateDoc, 
+  setDoc, 
   doc, 
   deleteDoc,
   serverTimestamp,
   orderBy,
   limit,
-  Timestamp
+  Timestamp,
+  updateDoc
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -67,7 +67,7 @@ const getDateFromFirestore = (date: any): Date | null => {
   return null;
 };
 
-// New types for dashboard data
+// Interfaces for dashboard data
 export interface ProjectStats {
   total: number;
   active: number;
@@ -100,13 +100,12 @@ export const createNewUser = async (userData: {
   permissions?: string[];
 }) => {
   try {
-    // Create authentication user
     const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-    
-    // Create user document in Firestore
-    const usersRef = collection(db, 'users');
-    const userDoc = await addDoc(usersRef, {
-      uid: userCredential.user.uid,
+    const uid = userCredential.user.uid;
+
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, {
+      uid: uid,
       email: userData.email,
       fullName: userData.fullName,
       role: userData.role,
@@ -117,8 +116,8 @@ export const createNewUser = async (userData: {
     });
 
     return {
-      id: userDoc.id,
-      uid: userCredential.user.uid,
+      id: uid,
+      uid: uid,
       ...userData,
       status: 'active'
     };
@@ -136,26 +135,18 @@ export const updateUser = async (userId: string, userData: {
   status?: string;
 }) => {
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where("uid", "==", userId));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const userDoc = querySnapshot.docs[0];
-      const updateData = {
-        ...userData,
-        updatedAt: serverTimestamp()
-      };
-      
-      // Update permissions if role changes
-      if (userData.role && !userData.permissions) {
-        updateData.permissions = getRoleDefaultPermissions(userData.role);
-      }
-      
-      await updateDoc(doc(db, 'users', userDoc.id), updateData);
-      return { id: userDoc.id, ...userDoc.data(), ...updateData };
+    const userRef = doc(db, 'users', userId);
+    const updateData = {
+      ...userData,
+      updatedAt: serverTimestamp()
+    };
+
+    if (userData.role && !userData.permissions) {
+      updateData.permissions = getRoleDefaultPermissions(userData.role);
     }
-    throw new Error('User not found');
+
+    await updateDoc(userRef, updateData);
+    return { id: userId, ...updateData };
   } catch (error: any) {
     console.error('Error updating user:', error);
     throw new Error(error.message || 'Failed to update user');
@@ -164,16 +155,9 @@ export const updateUser = async (userId: string, userData: {
 
 export const deleteUser = async (userId: string) => {
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where("uid", "==", userId));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const userDoc = querySnapshot.docs[0];
-      await deleteDoc(doc(db, 'users', userDoc.id));
-      return true;
-    }
-    throw new Error('User not found');
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
+    return true;
   } catch (error: any) {
     console.error('Error deleting user:', error);
     throw new Error(error.message || 'Failed to delete user');
@@ -216,7 +200,7 @@ export const getUsersByRole = async (role: Role) => {
   }
 };
 
-// New functions for dashboard data
+// Dashboard data functions
 export const getProjectStats = async (): Promise<ProjectStats> => {
   try {
     const projectsRef = collection(db, 'projects');
@@ -244,14 +228,12 @@ export const getTaskStats = async (): Promise<TaskStats> => {
     const tasksRef = collection(db, 'tasks');
     const now = new Date();
 
-    // Get all tasks first
     const allTasksSnapshot = await getDocs(tasksRef);
     const allTasks = allTasksSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    // Calculate stats from the fetched tasks
     const stats = {
       total: allTasks.length,
       pending: 0,
@@ -261,7 +243,6 @@ export const getTaskStats = async (): Promise<TaskStats> => {
     };
 
     allTasks.forEach(task => {
-      // Count by status
       switch (task.status) {
         case 'pending':
           stats.pending++;
@@ -274,7 +255,6 @@ export const getTaskStats = async (): Promise<TaskStats> => {
           break;
       }
 
-      // Check for overdue tasks
       const dueDate = getDateFromFirestore(task.due_date);
       if (dueDate && dueDate < now && task.status !== 'completed') {
         stats.overdue++;
@@ -339,7 +319,7 @@ export const getRecentActivity = async () => {
   }
 };
 
-// Helper function to get default permissions based on role
+// Helper function for default permissions
 function getRoleDefaultPermissions(role: Role): string[] {
   switch (role) {
     case ROLES.SUPER_ADMIN:
