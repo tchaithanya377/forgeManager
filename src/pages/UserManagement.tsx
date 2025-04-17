@@ -202,6 +202,9 @@ function UserManagement() {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  UID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -217,7 +220,7 @@ function UserManagement() {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.map((user: User) => (
-                <tr key={user.id}>
+                <tr key={user.uid}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -235,6 +238,9 @@ function UserManagement() {
                         <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {user.uid}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
@@ -287,6 +293,19 @@ function UserManagement() {
                         {editingUser ? 'Edit User' : 'Add New User'}
                       </h3>
                       <div className="mt-2 space-y-4">
+                        {editingUser && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              UID
+                            </label>
+                            <input
+                              type="text"
+                              value={editingUser.uid}
+                              disabled
+                              className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 sm:text-sm"
+                            />
+                          </div>
+                        )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Email
