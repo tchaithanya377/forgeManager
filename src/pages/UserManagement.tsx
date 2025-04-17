@@ -12,7 +12,6 @@ import toast from 'react-hot-toast';
 
 interface User {
   id: string;
-  uid: string; // Optional; can be removed if using id consistently
   email: string;
   fullName: string;
   role: Role;
@@ -61,7 +60,6 @@ function UserManagement() {
     e.preventDefault();
     try {
       if (editingUser) {
-        // Changed from editingUser.uid to editingUser.id
         await updateUser(editingUser.id, {
           fullName: formData.fullName,
           role: formData.role,
@@ -95,8 +93,7 @@ function UserManagement() {
   const handleDelete = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        // Changed from user.uid to user.id
-        await deleteUser(userId); // Parameter renamed to userId, but usage updated in call
+        await deleteUser(userId);
         toast.success('User deleted successfully');
         queryClient.invalidateQueries('users');
       } catch (error) {
@@ -259,7 +256,7 @@ function UserManagement() {
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(user.id)} // Changed from user.uid to user.id
+                      onClick={() => handleDelete(user.id)}
                       className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -272,7 +269,6 @@ function UserManagement() {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed z-10 inset-0 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
