@@ -19,6 +19,7 @@ interface User {
   permissions?: string[];
   status: string;
   createdAt: any;
+  reportsTo?: string; // ID of the user they report to
 }
 
 function UserManagement() {
@@ -31,6 +32,7 @@ function UserManagement() {
     fullName: '',
     role: ROLES.MEMBER as Role,
     department: '' as Department,
+    reportsTo: '' as string,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<Role | ''>('');
@@ -39,6 +41,12 @@ function UserManagement() {
   const { data: users = [], isLoading } = useQuery('users', getUsers, {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, string>();
+    users.forEach(user => map.set(user.id, user.fullName));
+    return map;
+  }, [users]);
 
   const filteredUsers = useMemo(() => 
     users.filter((user: User) => {
@@ -64,10 +72,14 @@ function UserManagement() {
           fullName: formData.fullName,
           role: formData.role,
           department: formData.department,
+          reportsTo: formData.reportsTo || null,
         });
         toast.success('User updated successfully');
       } else {
-        await createNewUser(formData);
+        await createNewUser({
+          ...formData,
+          reportsTo: formData.reportsTo || null,
+        });
         toast.success('User created successfully');
       }
       setShowModal(false);
@@ -86,6 +98,7 @@ function UserManagement() {
       fullName: user.fullName,
       role: user.role,
       department: user.department || '' as Department,
+      reportsTo: user.reportsTo || '',
     });
     setShowModal(true);
   };
@@ -143,6 +156,7 @@ function UserManagement() {
               fullName: '',
               role: ROLES.MEMBER,
               department: '' as Department,
+              reportsTo: '',
             });
             setShowModal(true);
           }}
@@ -207,6 +221,9 @@ function UserManagement() {
                   Department
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Reports To
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -242,6 +259,9 @@ function UserManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {user.department || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {user.reportsTo ? userMap.get(user.reportsTo) || 'Unknown' : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -352,6 +372,23 @@ function UserManagement() {
                             <option value="">Select Department</option>
                             {Object.values(DEPARTMENTS).map((dept) => (
                               <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Reports To
+                          </label>
+                          <select
+                            value={formData.reportsTo}
+                            onChange={(e) => setFormData({ ...formData, reportsTo: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                          >
+                            <option value="">None</option>
+                            {users.filter(u => u.id !== editingUser?.id).map(user => (
+                              <option key={user.id} value={user.id}>
+                                {user.fullName} ({user.role})
+                              </option>
                             ))}
                           </select>
                         </div>
