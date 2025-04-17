@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 interface User {
   id: string;
-  uid: string;
+  uid: string; // Optional; can be removed if using id consistently
   email: string;
   fullName: string;
   role: Role;
@@ -61,7 +61,8 @@ function UserManagement() {
     e.preventDefault();
     try {
       if (editingUser) {
-        await updateUser(editingUser.uid, {
+        // Changed from editingUser.uid to editingUser.id
+        await updateUser(editingUser.id, {
           fullName: formData.fullName,
           role: formData.role,
           department: formData.department,
@@ -94,7 +95,8 @@ function UserManagement() {
   const handleDelete = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        await deleteUser(userId);
+        // Changed from user.uid to user.id
+        await deleteUser(userId); // Parameter renamed to userId, but usage updated in call
         toast.success('User deleted successfully');
         queryClient.invalidateQueries('users');
       } catch (error) {
@@ -202,9 +204,6 @@ function UserManagement() {
                   User
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  UID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -220,7 +219,7 @@ function UserManagement() {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.map((user: User) => (
-                <tr key={user.uid}>
+                <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -238,9 +237,6 @@ function UserManagement() {
                         <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {user.uid}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
@@ -263,7 +259,7 @@ function UserManagement() {
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(user.uid)}
+                      onClick={() => handleDelete(user.id)} // Changed from user.uid to user.id
                       className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -293,19 +289,6 @@ function UserManagement() {
                         {editingUser ? 'Edit User' : 'Add New User'}
                       </h3>
                       <div className="mt-2 space-y-4">
-                        {editingUser && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                              UID
-                            </label>
-                            <input
-                              type="text"
-                              value={editingUser.uid}
-                              disabled
-                              className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 sm:text-sm"
-                            />
-                          </div>
-                        )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Email
